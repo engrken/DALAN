@@ -22,3 +22,6 @@ Features: MapLibre GL JS and OpenFreeMap public style, map centered near Roxas C
 7. Stop & revoke, verify link returns 404 and DB row removed; expiry after one hour returns 410.
 8. Verify viewer cannot update location using only viewer token, and anonymous admin routes still require auth.
 9. Validate mobile page build and DB connection; keep CLEAR entirely separate.
+
+## Navigation away from sharing screen
+- The active share owner key is held in same-tab sessionStorage so navigation back to the map allows explicit resume or revocation. This secret is not sent to analytics or logged by the app. It is erased after a successful Stop, or the session expires after 60 minutes. Closing the browser may discard control; links then expire without further updates. The page does not promise continuous background updates.

@@ -12,7 +12,7 @@ export default function AdminDashboard({initialReports,initialCounts,error}) {
   const view=reports.filter(r=>filter==="all"||r.status===filter);
   async function changeStatus(id,status) {
     setBusy(id);setMessage("");
-    try { const res=await fetch("/api/admin/reports",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status})});const json=await res.json();if(!res.ok)throw new Error(json.error||"Update failed");setReports(old=>old.map(r=>r.id===id?{...r,status}:r));setMessage("Report updated successfully.");}
+    try { const res=await fetch("/api/admin/reports",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status})});const json=await res.json();if(!res.ok)throw new Error(json.error||"Update failed");setReports(old=>old.map(r=>r.id===id?{...r,status}:r));setCounts(old=>{const previous=reports.find(r=>r.id===id)?.status;const next={...old};if(previous&&previous!==status){next[previous]=Math.max(0,(next[previous]||0)-1);next[status]=(next[status]||0)+1;}return next;});setMessage("Report updated successfully.");}
     catch(e){setMessage(e.message||"Unable to update report");}finally{setBusy("");}
   }
   async function logout() {

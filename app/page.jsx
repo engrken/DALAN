@@ -35,7 +35,18 @@ export default function Home() {
   fetch("/api/reports",{cache:"no-store"}).then(r=>r.json()).then(setStats).catch(()=>{});
   return ()=>{window.removeEventListener("beforeinstallprompt",capture);window.removeEventListener("appinstalled",installedFn);};
  },[]);
- useEffect(()=>()=>{streamRef.current?.getTracks().forEach(t=>t.stop());},[]);
+ useEffect(()=>{
+  function stopPrivatePreview(){
+   streamRef.current?.getTracks().forEach(t=>t.stop());
+   streamRef.current=null;
+   setCameraEnabled(false);
+  }
+  const hide=()=>{if(document.hidden) stopPrivatePreview();};
+  document.addEventListener("visibilitychange",hide);
+  window.addEventListener("pagehide",stopPrivatePreview);
+  return ()=>{stopPrivatePreview();document.removeEventListener("visibilitychange",hide);window.removeEventListener("pagehide",stopPrivatePreview);};
+ },[]);
+ useEffect(()=>{if(section!=="tools" && streamRef.current){streamRef.current.getTracks().forEach(t=>t.stop());streamRef.current=null;setCameraEnabled(false);}},[section]);
  async function getLocation(){
   if(!navigator.geolocation){setGpsStatus("This browser does not provide geolocation.");return;}
   setLoadingLocation(true);setGpsStatus("Requesting your permission...");

@@ -8,11 +8,11 @@ export async function GET(_req,context){
  const {token}=await context.params;
  if(!goodToken(token))return json({error:"Invalid link"},404);
  try{
-  const r=await getDb().query("SELECT expires_at,stopped_at,last_seen_at,last_lat,last_lng,last_accuracy_m,last_speed_kph,mode_hint,vehicle_type,plate_no,operator_label,share_vehicle_details,destination_label FROM public.dalan_trip_shares WHERE viewer_token_hash=$1",[tokenHash(token)]);
+  const r=await getDb().query("SELECT expires_at,stopped_at,last_seen_at,last_lat,last_lng,last_accuracy_m,last_speed_kph,mode_hint,vehicle_type,plate_no,operator_label,share_vehicle_details,destination_label,last_checkin_at,next_checkin_at,assistance_status FROM public.dalan_trip_shares WHERE viewer_token_hash=$1",[tokenHash(token)]);
   if(!r.rows.length)return json({error:"Trip not available or already stopped"},404);
   const x=r.rows[0];if(new Date(x.expires_at)<=new Date()||x.stopped_at)return json({error:"This trip link has expired"},410);
   const age=x.last_seen_at?Date.now()-new Date(x.last_seen_at).getTime():null;
-  return json({active:true,expiresAt:x.expires_at,lastSeenAt:x.last_seen_at,stale:age===null||age>45000,location:x.last_lat==null?null:{lat:x.last_lat,lng:x.last_lng,accuracyMeters:x.last_accuracy_m},speedKph:x.last_speed_kph,modeHint:x.mode_hint,vehicleType:x.vehicle_type,destination:x.destination_label,vehicle:x.share_vehicle_details?{plate:x.plate_no,operator:x.operator_label}:null});
+  return json({active:true,expiresAt:x.expires_at,lastSeenAt:x.last_seen_at,stale:age===null||age>45000,location:x.last_lat==null?null:{lat:x.last_lat,lng:x.last_lng,accuracyMeters:x.last_accuracy_m},speedKph:x.last_speed_kph,modeHint:x.mode_hint,vehicleType:x.vehicle_type,destination:x.destination_label,checkIn:{lastAt:x.last_checkin_at,nextDueAt:x.next_checkin_at,overdue:Boolean(x.next_checkin_at&&new Date(x.next_checkin_at)<new Date())},assistanceStatus:x.assistance_status,vehicle:x.share_vehicle_details?{plate:x.plate_no,operator:x.operator_label}:null});
  }catch{return json({error:"Unable to load live trip"},503);}
 }
 export async function PATCH(req,context){

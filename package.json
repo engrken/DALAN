@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run test:fares && next build",
     "start": "next start",
     "test:fares": "node --test tests/fare-engine.test.mjs"
   },

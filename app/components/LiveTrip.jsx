@@ -20,6 +20,17 @@ export default function LiveTrip({destination}){
  const latestLocationRef=useRef(null);
  useEffect(()=>{sessionRef.current=session;},[session]);
  useEffect(()=>{
+  try{
+   const raw=sessionStorage.getItem("dalan_active_trip_owner");
+   if(!raw)return;
+   const saved=JSON.parse(raw);
+   if(saved&&/^[0-9a-f]{64}$/.test(saved.viewerToken||"")&&/^[0-9a-f]{64}$/.test(saved.ownerToken||"")&&Date.now()<new Date(saved.expiresAt).getTime()){
+    sessionRef.current=saved;setSession(saved);setPaused(true);
+    setStatus("A shared link is still active from this tab. GPS updates are paused. Tap Resume or Stop & revoke.");
+   }else sessionStorage.removeItem("dalan_active_trip_owner");
+  }catch{sessionStorage.removeItem("dalan_active_trip_owner");}
+ },[]);
+ useEffect(()=>{
   function hide(){if(document.hidden&&watchRef.current!==null){navigator.geolocation.clearWatch(watchRef.current);watchRef.current=null;if(sessionRef.current){setPaused(true);setStatus("Location updates paused while DALAN is in the background. Open DALAN and tap Resume to continue.");}}}
   document.addEventListener("visibilitychange",hide);
   return()=>{document.removeEventListener("visibilitychange",hide);if(watchRef.current!==null)navigator.geolocation.clearWatch(watchRef.current);};
@@ -72,7 +83,7 @@ export default function LiveTrip({destination}){
    const res=await fetch("/api/trips",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({consent:true,...location,vehicleType,plate,operator,shareVehicleDetails:shareVehicle,destination})});
    const data=await res.json();if(!res.ok)throw new Error(data.error||"Could not start sharing");
    const active={viewerToken:data.viewerToken,ownerToken:data.ownerToken,expiresAt:data.expiresAt};
-   sessionRef.current=active;setSession(active);
+   sessionRef.current=active;setSession(active);sessionStorage.setItem("dalan_active_trip_owner",JSON.stringify(active));
    setStatus("Live sharing is enabled for 60 minutes at most. Keep DALAN open for updates.");
    beginWatch();
   }catch(e){setStatus(e.message||"Cannot start trip");}finally{setBusy(false);}
@@ -86,7 +97,7 @@ export default function LiveTrip({destination}){
    try{
     const res=await fetch("/api/trips/"+active.viewerToken,{method:"DELETE",headers:{"X-Dalan-Owner-Token":active.ownerToken}});
     if(!res.ok)throw new Error("Unable to revoke this trip. Try again while online. The link also expires automatically.");
-    sessionRef.current=null;setSession(null);setShareNote("");setStatus("Trip sharing stopped and its location record deleted.");
+    sessionStorage.removeItem("dalan_active_trip_owner");sessionRef.current=null;setSession(null);setShareNote("");setStatus("Trip sharing stopped and its location record deleted.");
    }catch(e){setStatus(e.message);setPaused(true);}
    finally{setBusy(false);}
   }
@@ -116,7 +127,7 @@ export default function LiveTrip({destination}){
    <p className="helper">Entered vehicle details are not verified against official registration data. Do not use this to identify or accuse a driver. Only provide information you have a legitimate reason to share.</p>
    {!session&&<div className="shareConsent">
     <label className="checkRow"><input type="checkbox" checked={shareVehicle} onChange={e=>setShareVehicle(e.target.checked)}/><span>Include the above vehicle information in the recipient's trip-view page (otherwise hidden).</span></label>
-    <label className="checkRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span><b>I explicitly choose to share my live GPS location.</b> Anyone who receives my link may see my current coordinates and timestamp for up to 60 minutes. Updates only work while DALAN remains open and the internet is available. The link is revocable. Sharing does not alert emergency services.</span></label>
+    <label className="checkRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span><b>I explicitly choose to share my live GPS location.</b> Anyone who receives my link may see my current coordinates and timestamp for up to 60 minutes. Updates only work while this screen is open, unpaused and the internet is available. If you navigate away, return to this screen to resume or revoke; after the browser tab closes, automatic revocation is not guaranteed. The link is revocable. Sharing does not alert emergency services.</span></label>
     <button className="mainButton" onClick={start} disabled={!agreed||busy||!location}>Start private trip share</button>
    </div>}
    {session&&<div className="activeShare">

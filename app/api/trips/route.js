@@ -19,11 +19,12 @@ export async function POST(req){
   const destination=String(body.destination||"").trim();
   if(plate.length>20||operator.length>80||destination.length>120||(!/^[A-Z0-9 -]*$/.test(plate)))return json({error:"Please shorten or correct the vehicle information"},400);
   const duration=60;
+  const adminMonitoring=body.adminMonitoring===true && body.adminConsent===true;
   const viewerToken=newToken(),ownerToken=newToken();
   await purgeExpired();
   const result=await getDb().query(
-   "INSERT INTO public.dalan_trip_shares (viewer_token_hash,owner_token_hash,expires_at,last_seen_at,last_lat,last_lng,last_accuracy_m,vehicle_type,plate_no,operator_label,share_vehicle_details,destination_label) VALUES ($1,$2,now()+interval '60 minutes',now(),$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id,expires_at",
-   [tokenHash(viewerToken),tokenHash(ownerToken),body.lat,body.lng,Math.round(body.accuracy),body.vehicleType,plate||null,operator||null,body.shareVehicleDetails===true,destination||null]
+   "INSERT INTO public.dalan_trip_shares (viewer_token_hash,owner_token_hash,expires_at,last_seen_at,last_lat,last_lng,last_accuracy_m,vehicle_type,plate_no,operator_label,share_vehicle_details,destination_label,admin_visibility,admin_consent_at,last_checkin_at,next_checkin_at) VALUES ($1,$2,now()+interval '60 minutes',now(),$3,$4,$5,$6,$7,$8,$9,$10,$11,CASE WHEN $11 THEN now() ELSE NULL END,now(),now()+interval '15 minutes') RETURNING id,expires_at",
+   [tokenHash(viewerToken),tokenHash(ownerToken),body.lat,body.lng,Math.round(body.accuracy),body.vehicleType,plate||null,operator||null,body.shareVehicleDetails===true,destination||null,adminMonitoring]
   );
   return json({ok:true,viewerToken,ownerToken,tripId:result.rows[0].id,expiresAt:result.rows[0].expires_at,validForMinutes:duration},201);
  }catch{return json({error:"Unable to create a live trip. Try again."},503);}

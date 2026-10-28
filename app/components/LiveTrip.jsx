@@ -14,6 +14,7 @@ export default function LiveTrip({destination}){
  const [location,setLocation]=useState(null),[status,setStatus]=useState("Location is off until you grant permission.");
  const [vehicleType,setVehicleType]=useState("unknown"),[plate,setPlate]=useState(""),[operator,setOperator]=useState("");
  const [shareVehicle,setShareVehicle]=useState(false),[agreed,setAgreed]=useState(false);
+ const [adminMonitoring,setAdminMonitoring]=useState(false),[assistanceNote,setAssistanceNote]=useState(""),[assistance,setAssistance]=useState("none"),[nextCheckin,setNextCheckin]=useState(null),[safetyMessage,setSafetyMessage]=useState("");
  const [session,setSession]=useState(null),[busy,setBusy]=useState(false),[paused,setPaused]=useState(false),[motion,setMotion]=useState({hint:"unknown",text:"Movement not measured"});
  const [shareNote,setShareNote]=useState("");
  const watchRef=useRef(null),sessionRef=useRef(null),lastSendRef=useRef(0),prevRef=useRef(null),sendingRef=useRef(false);
@@ -80,11 +81,11 @@ export default function LiveTrip({destination}){
   if(location.accuracy>150){setStatus("GPS accuracy is too low for sharing. Move to an open area and refresh.");return;}
   setBusy(true);
   try{
-   const res=await fetch("/api/trips",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({consent:true,...location,vehicleType,plate,operator,shareVehicleDetails:shareVehicle,destination})});
+   const res=await fetch("/api/trips",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({consent:true,...location,vehicleType,plate,operator,shareVehicleDetails:shareVehicle,adminMonitoring,adminConsent:adminMonitoring,destination})});
    const data=await res.json();if(!res.ok)throw new Error(data.error||"Could not start sharing");
    const active={viewerToken:data.viewerToken,ownerToken:data.ownerToken,expiresAt:data.expiresAt};
    sessionRef.current=active;setSession(active);sessionStorage.setItem("dalan_active_trip_owner",JSON.stringify(active));
-   setStatus("Live sharing is enabled for 60 minutes at most. Keep DALAN open for updates.");
+   setStatus("Live sharing is enabled for 60 minutes at most. Keep DALAN open for updates.");setNextCheckin(Date.now()+15*60*1000);
    beginWatch();
   }catch(e){setStatus(e.message||"Cannot start trip");}finally{setBusy(false);}
  }
@@ -97,12 +98,26 @@ export default function LiveTrip({destination}){
    try{
     const res=await fetch("/api/trips/"+active.viewerToken,{method:"DELETE",headers:{"X-Dalan-Owner-Token":active.ownerToken}});
     if(!res.ok)throw new Error("Unable to revoke this trip. Try again while online. The link also expires automatically.");
-    sessionStorage.removeItem("dalan_active_trip_owner");sessionRef.current=null;setSession(null);setShareNote("");setStatus("Trip sharing stopped and its location record deleted.");
+    sessionStorage.removeItem("dalan_active_trip_owner");sessionRef.current=null;setSession(null);setShareNote("");setAssistance("none");setNextCheckin(null);setAdminMonitoring(false);setStatus("Trip sharing stopped and its location record deleted.");
    }catch(e){setStatus(e.message);setPaused(true);}
    finally{setBusy(false);}
   }
  }
- async function shareLink(){
+ async function safetyAction(action){
+  const active=sessionRef.current;if(!active)return;
+  setBusy(true);setSafetyMessage("");
+  try{
+   const res=await fetch("/api/trips/"+active.viewerToken+"/safety",{method:"POST",headers:{"Content-Type":"application/json","X-Dalan-Owner-Token":active.ownerToken},body:JSON.stringify({action,confirm:true,note:assistanceNote})});
+   const data=await res.json();if(!res.ok)throw Error(data.error||"Unable to update safety preferences");
+   if(action==="check_in")setNextCheckin(Date.now()+15*60*1000);
+   if(action==="grant_admin")setAdminMonitoring(true);
+   if(action==="revoke_admin")setAdminMonitoring(false);
+   if(action==="request_assistance"){setAssistance("requested");setAdminMonitoring(true);}
+   if(action==="cancel_assistance"){setAssistance("none");setAdminMonitoring(false);}
+   setSafetyMessage(data.notice||"Safety preference updated.");
+  }catch(e){setSafetyMessage(e.message);}finally{setBusy(false);}
+ }
+  async function shareLink(){
   if(!session)return;
   const url=window.location.origin+"/share/"+session.viewerToken;
   try{
@@ -127,6 +142,7 @@ export default function LiveTrip({destination}){
    <p className="helper">Entered vehicle details are not verified against official registration data. Do not use this to identify or accuse a driver. Only provide information you have a legitimate reason to share.</p>
    {!session&&<div className="shareConsent">
     <label className="checkRow"><input type="checkbox" checked={shareVehicle} onChange={e=>setShareVehicle(e.target.checked)}/><span>Include the above vehicle information in the recipient's trip-view page (otherwise hidden).</span></label>
+    <label className="checkRow"><input type="checkbox" checked={adminMonitoring} onChange={e=>setAdminMonitoring(e.target.checked)}/><span><b>Separately authorize DALAN safety officers to view my GPS during this trip.</b> Only named staff with the safety role should have access, and every precise-location lookup is logged. This is optional and can be revoked; an active assistance request must first be cancelled.</span></label>
     <label className="checkRow"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)}/><span><b>I explicitly choose to share my live GPS location.</b> Anyone who receives my link may see my current coordinates and timestamp for up to 60 minutes. Updates only work while this screen is open, unpaused and the internet is available. If you navigate away, return to this screen to resume or revoke; after the browser tab closes, automatic revocation is not guaranteed. The link is revocable. Sharing does not alert emergency services.</span></label>
     <button className="mainButton" onClick={start} disabled={!agreed||busy||!location}>Start private trip share</button>
    </div>}
@@ -134,7 +150,13 @@ export default function LiveTrip({destination}){
     <span className="sharingBadge">● LIVE LINK ENABLED</span>
     <p>Expires: {new Date(session.expiresAt).toLocaleString("en-PH",{timeZone:"Asia/Manila"})} (Philippine time)</p>
     <div className="liveControls"><button className="mainButton" onClick={shareLink}>Share link with family / friend</button><button className="outlineButton" onClick={stop} disabled={busy}>Stop & revoke link</button>{paused&&<button className="outlineButton" onClick={beginWatch}>Resume GPS updates</button>}</div>
-    {shareNote&&<p className="helper" role="status">{shareNote}</p>}
+    <section className="safetyActions"><h3>Trip safety check-ins</h3><p>Check in about every 15 minutes while the app stays open. A missed check-in is not proof of danger and does not automatically call responders.</p><p className={nextCheckin&&Date.now()>nextCheckin?"checkinOverdue":"checkinDue"}>{nextCheckin?"Next check-in by "+new Date(nextCheckin).toLocaleTimeString("en-PH",{timeZone:"Asia/Manila"}):"Check-in not scheduled"}</p><button className="outlineButton" disabled={busy} onClick={()=>safetyAction("check_in")}>I'm okay — check in</button>
+      <h3>DALAN safety assistance (pilot)</h3><p>Submit an internal assistance request and share your current trip with authorized safety staff. <b>This is not an emergency dispatch service and does not guarantee a response.</b> If you are in immediate danger, contact official emergency services.</p><label className="controlField">Optional assistance note<textarea rows={2} maxLength={300} value={assistanceNote} onChange={e=>setAssistanceNote(e.target.value)} placeholder="General situation without unnecessary personal information"/></label>
+      {assistance==="none"?<button className="mainButton" disabled={busy} onClick={()=>safetyAction("request_assistance")}>Request DALAN assistance</button>:<button className="outlineButton" disabled={busy} onClick={()=>safetyAction("cancel_assistance")}>Cancel assistance & revoke staff access</button>}
+      <h3>Administrator visibility</h3><p>{adminMonitoring?"Authorized safety officers may view this trip's latest GPS with access logging.":"Administrators cannot see this trip's precise location."}</p><div className="liveControls">{adminMonitoring&&assistance==="none"?<button className="outlineButton" disabled={busy} onClick={()=>safetyAction("revoke_admin")}>Revoke admin GPS access</button>:!adminMonitoring?<button className="outlineButton" disabled={busy} onClick={()=>safetyAction("grant_admin")}>Allow safety-officer monitoring</button>:null}</div>
+      {safetyMessage&&<p className="liveStatus" role="status">{safetyMessage}</p>}
+     </section>
+     {shareNote&&<p className="helper" role="status">{shareNote}</p>}
     <p className="helper">The viewer link is a secret. For now, Vercel Authentication also limits access to authorized DALAN testers; public family viewing will be enabled only after privacy and security review.</p>
    </div>}
   </section>

@@ -8,7 +8,7 @@ export default function AdminDashboard({initialReports,initialCounts,error}) {
   const [filter,setFilter]=useState("all");
   const [busy,setBusy]=useState("");
   const [message,setMessage]=useState(error||"");
-  const counts={pending:reports.filter(r=>r.status==="pending").length,reviewed:reports.filter(r=>r.status==="reviewed").length,dismissed:reports.filter(r=>r.status==="dismissed").length};
+  const [counts,setCounts]=useState({pending:initialCounts.pending||0,reviewed:initialCounts.reviewed||0,dismissed:initialCounts.dismissed||0});
   const view=reports.filter(r=>filter==="all"||r.status===filter);
   async function changeStatus(id,status) {
     setBusy(id);setMessage("");

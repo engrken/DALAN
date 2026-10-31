@@ -6,7 +6,7 @@ export default function Page(){
  const [passenger,setPassenger]=useState("Student");
  const [submitted,setSubmitted]=useState(false);
  return <main className="wrap">
-  <header><div className="brand"><span className="mark">D</span><div><b>DALAN</b><small>Digital Assistance for Local Access and Navigation</small></div></div><span className="pill">Development preview</span></header>
+  <header><div className="brand"><span className="mark">D</span><div><b>DALAN</b><small>Digital Assistance for Local Access and Navigation</small></div></div><a className="pill" href="/feedback">Give UAT feedback</a></header>
   <section className="hero">
    <div><span className="eyebrow">Roxas City, Capiz · Initial pilot</span><h1>Every journey starts with <em>a better route.</em></h1><p>A local-first mobility platform designed for students, everyday commuters, and transport partners.</p><div className="chips"><span>Local route discovery</span><span>Transparent fares</span><span>Community alerts</span></div></div>
    <div className="planner"><div className="cardhead"><div><span className="eyebrow">COMMUTE PLANNER</span><h2>Plan your trip</h2></div><span className="demo">Demo only</span></div>

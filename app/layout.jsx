@@ -1,3 +1,3 @@
 import "./globals.css";
-export const metadata={title:"DALAN | Smart Mobility",description:"Development preview of DALAN: Digital Assistance for Local Access and Navigation",robots:{index:false,follow:false}};
+export const metadata={title:"RoxasGo | Roxas City Commuter App",description:"RoxasGo is a commuter-first guide for tricycle and jeepney travel in Roxas City, Capiz. Development preview only; route and fare information is not yet validated.",robots:{index:false,follow:false}};
 export default function RootLayout({children}){return <html lang="en"><body>{children}</body></html>}

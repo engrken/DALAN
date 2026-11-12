@@ -6,7 +6,7 @@ export default function Page(){
  const [passenger,setPassenger]=useState("Student");
  const [submitted,setSubmitted]=useState(false);
  return <main className="wrap">
-  <header><div className="brand"><span className="mark">R</span><div><b>RoxasGo</b><small>Roxas City commuter guide</small></div></div><span className="pill">Development preview</span></header>
+  <header><img className="brand-logo" src="/roxasgo-logo.svg" alt="RoxasGo · Roxas City commuter guide" width="250" height="58"/><span className="pill">Development preview</span></header>
   <section className="hero">
    <div><span className="eyebrow">Roxas City, Capiz · Initial pilot</span><h1>Your city. Your route. <em>Your ride.</em></h1><p>A commuter-first guide for finding local transport options across Roxas City, Capiz. Explore tricycle and jeepney routes, fare guidance, and community updates as verified information becomes available.</p><div className="chips"><span>Local route discovery</span><span>Transparent fares</span><span>Community alerts</span></div></div>
    <div className="planner"><div className="cardhead"><div><span className="eyebrow">COMMUTE PLANNER</span><h2>Plan your trip</h2></div><span className="demo">Demo only</span></div>
